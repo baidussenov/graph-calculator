@@ -91,7 +91,7 @@
 //endmodule
 module parabola(GPIO_0, clk, reset, MTL2_DCLK, MTL2_R, MTL2_G, MTL2_B, MTL2_HSD,
 MTL2_VSD);
-input [36:0] GPIO_0;
+input [35:0] GPIO_0;
 input clk;
 input reset;
 output MTL2_DCLK;
@@ -122,35 +122,69 @@ reg [11:0] x;
 reg [11:0] y;
 reg [11:0] yDistance;
 
-reg [11:0] t;
+reg [11:0] t; 
 initial t = 250;
 
-wire pressed;
-reg pressedPrev;
-PushButton_Debouncer dber(
-	.clk(clk25),
-	.PB(GPIO_0[0]),
-	.PB_up(pressed)
-);
+reg graph;
+initial graph = 0;
 
-always @(posedge clk25)
-begin
-		red <= 8'hcc;
-		green <= 8'hcc;
-		blue <= 8'hcc;
-	if (pressed) begin
-		t <= t + 50;
-		red<=8'h00;
-		green<=8'h00;
-		blue<=8'hcc;
+wire pressed [35:0];
+genvar i;
+
+generate
+   for (i = 0; i < 36; i = i + 1) begin : gen_loop
+      PushButton_Debouncer dber(
+	.clk(clk25),
+	.PB(GPIO_0[i]),
+	.PB_up(pressed[i])
+);
+   end
+endgenerate
+
+always @(posedge clk25) begin
+	if (pressed[1]) begin
+		graph = ~graph;
 	end
-	
-	if (hpos < t) begin
-		red <= 8'h00;
-		green <= 8'hcc;
-		blue <= 8'h00;
+	if (graph) begin
+		x <= hpos - 400;
+		y <= 240 - vpos;
+		if (x === 0 || y === 0) begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+		else if ((((x+1)*(x+1) >= y && y >= x*x)||((x+1)*(x+1)<= y && y <= x*x)) && y >= -400 && y <= 400) begin
+			red <= 8'h00; 
+			green <= 8'hcc; 
+			blue <= 8'h00;
+		end
+		else begin
+			red <= 8'hcc;
+			green <= 8'hcc;
+			blue <= 8'hcc;
+		end
 	end
-	pressedPrev <= pressed;
+	else begin
+		if (pressed[0]) begin
+			t <= t + 50;
+		end
+		if(hpos<=30 && vpos<=50 && display_on) begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+
+		else if (hpos < t) begin
+			red <= 8'h00;
+			green <= 8'hcc;
+			blue <= 8'h00;
+		end
+		else begin
+			red <= 8'hcc;
+			green <= 8'hcc;
+			blue <= 8'hcc;
+		end
+	end
 end
 assign MTL2_DCLK=clk25;
 assign MTL2_R=red;
