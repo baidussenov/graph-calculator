@@ -26,9 +26,8 @@ hvsync test(
 	.hpos(hpos),
 	.vpos(vpos)
 );
-
-reg [11:0] x;
-reg [11:0] y;
+integer x;
+integer y;
 reg [11:0] yDistance;
 
 reg [11:0] t; 
@@ -58,15 +57,14 @@ integer sign = 1;
 
 integer i;
 
-reg [11:0] graphX [800:0];
-reg [11:0] graphY [800:0];
+integer graphX [800:0];
+integer graphY [800:0];
 initial begin
 	for (i = 0; i < 800; i=i+1) begin 
-		graphX[i] = i;
+		graphX[i] = i-shiftX;
 	end
-	for (i = -400; i < 400; i=i+1) begin 
-		if (i*i < 240 && i*i > -240) 
-			graphY[i+400] = i*i;
+	for (i = 0; i < 800; i=i+1) begin 
+		graphY[i] = (i-shiftX)*(i-shiftX);
 	end
 end
 
@@ -89,11 +87,11 @@ always @(posedge clk25) begin
 			green <= 8'h00;
 			blue <= 8'h00;
 		end
-		else if ((y > graphY[hpos] && graphY[hpos+1] > y)
-				|| (y > graphY[hpos+1] && graphY[hpos] > y))begin
-				red <= 8'hcc;
-				green <= 8'h00;
-				blue <= 8'h00;
+		if ((y >= x*x && (x+1)*(x+1) >= y)
+		||	 ((x)*(x) >= y && y >= (x+1)*(x+1))) begin
+			red <= 8'h00;
+			green <= 8'hcc;
+			blue <= 8'hcc;
 		end
 	end
 	else begin
