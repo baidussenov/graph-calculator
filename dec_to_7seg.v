@@ -1,7 +1,7 @@
 module dec_to_7seg (out, in);
 
 output [6:0] out;
-input in;
+input [11:0] in;
 
 reg [6:0] out;
 
