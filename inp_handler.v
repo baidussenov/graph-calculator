@@ -34,21 +34,46 @@ hvsync test(
 	.vpos(vpos)
 );
 
+reg graph;
+initial graph = 0;
+
+integer curCoef = 0;
+
+integer shiftX = 400;
+integer shiftY = 240;
+reg [11:0] t;
+initial t = 250;
+integer x;
+integer y;
+integer graphX [800:0];
+integer graphY [800:0];
+integer coefs [4:0];
+integer i;
+initial begin
+	for (i = 0; i < 800; i=i+1) begin 
+		graphX[i] = i;
+	end
+	for (i = -400; i < 400; i=i+1) begin 
+		if (i*i < 240 && i*i > -240) 
+			graphY[i+400] = i*i;
+	end
+end
+
 reg [11:0] nums [0:4];
 wire pressed [35:0];
-genvar i;
+genvar gen;
 
 reg [7:0] plus;
 
 generate
-   for (i = 0; i < 36; i = i + 1) begin : debounce_loop
+   for (gen = 0; gen < 36; gen = gen + 1) begin : debounce_loop
       PushButton_Debouncer dber(
 			.clk(clk25),
-			.PB(GPIO_0[i]),
-			.PB_up(pressed[i])
+			.PB(GPIO_0[gen]),
+			.PB_up(pressed[gen])
 		);
    end
-	
+
 	dec_to_7seg conv0 (
 		.out(HEX0), 
 		.in(nums[0])
@@ -75,84 +100,198 @@ generate
 	);
 endgenerate
 
-always @(posedge clk25) begin
-	if (pressed[10]) begin
-		if (plus == 0) begin plus <= 1; end
-		else begin plus <= 0; end
-	end
+integer buff;
 
-	if (nums[4] != 0) begin
+function integer poly(input integer x, a4, a3, a2, a1, a0);
+    begin
+        poly = ((((a4 * x + a3) * x) + a2) * x + a1)*x + a0; 
+    end
+endfunction
+
+always @(posedge clk25) begin
+	x <= hpos - shiftX;
+	y <= shiftY - vpos;
+	red <= 8'hcc;
+	green <= 8'hcc;
+	blue <= 8'hcc;
+	if (pressed[33]) begin // switch mode
+		coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000;
+		if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1;
+		graph = ~graph;
+	end
+	if (graph) begin
+		if (pressed[34])
+			shiftX = shiftX + 10;
+		if (pressed[35])
+			shiftX = shiftX - 10;	
+		if ((x === 0 || y === 0) && display_on) begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+		
+		
+
+		if ((y >= poly(x, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) 
+				&& poly(x + 1, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) >= y)
+				||	 (poly(x, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) >= y 
+				&& y >= poly(x + 1, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]))) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'hcc;
+		end
 	end
 	else begin
-		if (pressed[0]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 0;
+		if (pressed[30]) begin // sign change
+			if (plus == 0) begin plus <= 1; end
+			else begin plus <= 0; end
 		end
-		else if (pressed[1]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 1;
+		if (pressed[34] && curCoef > 0) begin
+			coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000;
+			if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1;
+			curCoef = curCoef - 1;
+			buff = coefs[curCoef];
+			if (buff <= 0) begin
+				plus <= 0;
+				buff = buff * -1;
+			end
+			nums[0] = buff % 10;
+			buff = buff / 10;
+			nums[1] = buff % 10;
+			buff = buff / 10;
+			nums[2] = buff % 10;
+			buff = buff / 10;
+			nums[3] = buff % 10;
+			buff = buff / 10;
+			nums[4] = buff % 10;
 		end
-		else if (pressed[2]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 2;
+		else if (pressed[35] && curCoef < 4) begin
+			coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000;
+			if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1;
+			curCoef = curCoef + 1;
+			buff = coefs[curCoef];
+			if (buff <= 0) begin
+				plus <= 0;
+				buff = buff * -1;
+			end
+			nums[0] = buff % 10;
+			buff = buff / 10;
+			nums[1] = buff % 10;
+			buff = buff / 10;
+			nums[2] = buff % 10;
+			buff = buff / 10;
+			nums[3] = buff % 10;
+			buff = buff / 10;
+			nums[4] = buff % 10;
 		end
-		else if (pressed[3]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 3;
+		else if (hpos < t) begin
+			red <= 8'h00;
+			green <= 8'hcc;
+			blue <= 8'h00;
 		end
-		else if (pressed[4]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 4;
+		else begin
+			red <= 8'hcc;
+			green <= 8'hcc;
+			blue <= 8'hcc;
 		end
-		else if (pressed[5]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 5;
+		for (i = 0; i < 5; i=i+1) begin
+			if (hpos >= 20 + i*30 && vpos >= 20 &&
+				40 + i*30 >= hpos && 50 >= vpos && display_on) begin
+				red <= 8'h00;
+				green <= 8'h00;
+				blue <= 8'h00;
+			end
 		end
-		else if (pressed[6]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 6;
+
+		if (hpos >= 20 + curCoef*30 && vpos >= 20 &&
+			40 + curCoef*30 >= hpos && 50 >= vpos && display_on) begin
+			red <= 8'hcc;
+			green <= 8'h00;
+			blue <= 8'h00;
 		end
-		else if (pressed[7]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 7;
+
+		if (pressed[32]) begin // delete
+			nums[0] = nums[1];
+			nums[1] = nums[2];
+			nums[2] = nums[3];
+			nums[3] = nums[4];
+			nums[4] = 0;
 		end
-		else if (pressed[8]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 8;
+
+		if (nums[4] != 0) begin
+			// temporarily empty
 		end
-		else if (pressed[9]) begin
-			nums[4] <= nums[3];
-			nums[3] <= nums[2];
-			nums[2] <= nums[1];
-			nums[1] <= nums[0];
-			nums[0] <= 9;
+		else begin // number input:
+			if (pressed[0]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 0;
+			end
+			else if (pressed[1]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 1;
+			end
+			else if (pressed[2]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 2;
+			end
+			else if (pressed[3]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 3;
+			end
+			else if (pressed[4]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 4;
+			end
+			else if (pressed[5]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 5;
+			end
+			else if (pressed[6]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 6;
+			end
+			else if (pressed[7]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 7;
+			end
+			else if (pressed[8]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 8;
+			end
+			else if (pressed[9]) begin
+				nums[4] = nums[3];
+				nums[3] = nums[2];
+				nums[2] = nums[1];
+				nums[1] = nums[0];
+				nums[0] = 9;
+			end
 		end
 	end
 end
