@@ -38,14 +38,14 @@ reg graph;
 initial graph = 0;
 
 wire pressed [35:0];
-genvar i;
+genvar gen;
 
 generate
-   for (i = 0; i < 36; i = i + 1) begin : gen_loop
+   for (gen = 0; gen < 36; gen = gen + 1) begin : gen_loop
       PushButton_Debouncer dber(
 	.clk(clk25),
-	.PB(GPIO_0[i]),
-	.PB_up(pressed[i])
+	.PB(GPIO_0[gen]),
+	.PB_up(pressed[gen])
 );
    end
 endgenerate
@@ -56,11 +56,26 @@ integer degree = 0;
 integer curCoef = 0;
 integer sign = 1;
 
-integer iter;
+integer i;
+
+reg [11:0] graphX [800:0];
+reg [11:0] graphY [800:0];
+initial begin
+	for (i = 0; i < 800; i=i+1) begin 
+		graphX[i] = i;
+	end
+	for (i = -400; i < 400; i=i+1) begin 
+		if (i*i < 240 && i*i > -240) 
+			graphY[i+400] = i*i;
+	end
+end
 
 always @(posedge clk25) begin
 	x <= hpos - shiftX;
 	y <= shiftY - vpos;
+	red <= 8'hcc;
+	green <= 8'hcc;
+	blue <= 8'hcc;
 	if (pressed[1]) begin
 		graph = ~graph;
 	end
@@ -74,10 +89,11 @@ always @(posedge clk25) begin
 			green <= 8'h00;
 			blue <= 8'h00;
 		end
-		else begin
-			red <= 8'hcc;
-			green <= 8'hcc;
-			blue <= 8'hcc;
+		else if ((y > graphY[hpos] && graphY[hpos+1] > y)
+				|| (y > graphY[hpos+1] && graphY[hpos] > y))begin
+				red <= 8'hcc;
+				green <= 8'h00;
+				blue <= 8'h00;
 		end
 	end
 	else begin
@@ -98,9 +114,9 @@ always @(posedge clk25) begin
 			green <= 8'hcc;
 			blue <= 8'hcc;
 		end
-		for (iter = 0; iter < 5; iter=iter+1) begin
-			if(hpos >= 20 + iter*30 && vpos >= 20 &&
-				40 + iter*30 >= hpos && 50 >= vpos &&display_on) begin
+		for (i = 0; i < 5; i=i+1) begin
+			if(hpos >= 20 + i*30 && vpos >= 20 &&
+				40 + i*30 >= hpos && 50 >= vpos &&display_on) begin
 				red <= 8'h00;
 				green <= 8'h00;
 				blue <= 8'h00;
