@@ -42,13 +42,13 @@ integer curCoef = 0;
 integer shiftX = 400;
 integer shiftY = 240;
 reg [11:0] t;
-initial t = 250;
+initial t = 500;
 integer x;
 integer y;
 integer graphX [800:0];
 integer graphY [800:0];
 integer coefs [4:0];
-integer i;
+integer i, j;
 initial begin
 	for (i = 0; i < 800; i=i+1) begin 
 		graphX[i] = i;
@@ -63,7 +63,7 @@ reg [11:0] nums [0:4];
 wire pressed [35:0];
 genvar gen;
 
-reg [7:0] plus;
+reg [7:0] plus = 1; // start with 0 => "positive" (not negative)
 
 generate
    for (gen = 0; gen < 36; gen = gen + 1) begin : debounce_loop
@@ -109,8 +109,8 @@ function integer poly(input integer x, a4, a3, a2, a1, a0);
 endfunction
 
 always @(posedge clk25) begin
-	x <= hpos - shiftX;
-	y <= shiftY - vpos;
+	x <= (hpos - shiftX) / 2;
+	y <= (shiftY - vpos) / 2;
 	red <= 8'hcc;
 	green <= 8'hcc;
 	blue <= 8'hcc;
@@ -120,25 +120,42 @@ always @(posedge clk25) begin
 		graph = ~graph;
 	end
 	if (graph) begin
-		if (pressed[34])
+		if (pressed[34]) //left
 			shiftX = shiftX + 10;
-		if (pressed[35])
+		if (pressed[35]) //right
 			shiftX = shiftX - 10;	
 		if ((x === 0 || y === 0) && display_on) begin
 			red <= 8'h00;
 			green <= 8'h00;
 			blue <= 8'h00;
 		end
-		
-		
-
+		if ((x % 10 === 0 && y > -4 && 4 > y))begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+		if ((x % 100 === 0 && y > -10 && 10 > y))begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+		if ((y % 10 === 0 && x > -4 && 4 > x))begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
+		if ((y % 100 === 0 && x > -10 && 10 > x))begin
+			red <= 8'h00;
+			green <= 8'h00;
+			blue <= 8'h00;
+		end
 		if ((y >= poly(x, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) 
 				&& poly(x + 1, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) >= y)
 				||	 (poly(x, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]) >= y 
 				&& y >= poly(x + 1, coefs[4], coefs[3], coefs[2], coefs[1], coefs[0]))) begin
-					red <= 8'h00;
-					green <= 8'hcc;
-					blue <= 8'hcc;
+					red <= 8'hcc;
+					green <= 8'h00;
+					blue <= 8'h00;
 		end
 	end
 	else begin
@@ -146,14 +163,17 @@ always @(posedge clk25) begin
 			if (plus == 0) begin plus <= 1; end
 			else begin plus <= 0; end
 		end
-		if (pressed[34] && curCoef > 0) begin
-			coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000;
-			if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1;
-			curCoef = curCoef - 1;
+		if (pressed[34] && curCoef > 0) begin //left
+			coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000; //save coef
+			if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1; //save sign
+			curCoef = curCoef - 1; //move coef
 			buff = coefs[curCoef];
-			if (buff <= 0) begin
+			if (buff < 0) begin
 				plus <= 0;
 				buff = buff * -1;
+			end
+			else begin //sign bug fixed
+				plus <= 1;
 			end
 			nums[0] = buff % 10;
 			buff = buff / 10;
@@ -165,14 +185,17 @@ always @(posedge clk25) begin
 			buff = buff / 10;
 			nums[4] = buff % 10;
 		end
-		else if (pressed[35] && curCoef < 4) begin
+		else if (pressed[35] && curCoef < 4) begin //right
 			coefs[curCoef] = nums[0] + nums[1] * 10 + nums[2] * 100 + nums[3] * 1000 + nums[4] * 10000;
 			if (plus == 0) coefs[curCoef] = coefs[curCoef] * -1;
 			curCoef = curCoef + 1;
 			buff = coefs[curCoef];
-			if (buff <= 0) begin
+			if (buff < 0) begin
 				plus <= 0;
 				buff = buff * -1;
+			end
+			else begin //sign bug fixed
+				plus <= 1;
 			end
 			nums[0] = buff % 10;
 			buff = buff / 10;
@@ -194,22 +217,89 @@ always @(posedge clk25) begin
 			green <= 8'hcc;
 			blue <= 8'hcc;
 		end
-		for (i = 0; i < 5; i=i+1) begin
-			if (hpos >= 20 + i*30 && vpos >= 20 &&
-				40 + i*30 >= hpos && 50 >= vpos && display_on) begin
+		for (i = 0; i < 5; i=i+1) begin //Selecting coefs
+			if (hpos >= 20 + i*80 && vpos >= 20 &&
+				56 + i*80 >= hpos && 80 >= vpos && display_on) begin
 				red <= 8'h00;
 				green <= 8'h00;
 				blue <= 8'h00;
 			end
 		end
 
-		if (hpos >= 20 + curCoef*30 && vpos >= 20 &&
-			40 + curCoef*30 >= hpos && 50 >= vpos && display_on) begin
+		if (hpos >= 20 + curCoef*80 && vpos >= 20 && //Red selected coef
+			56 + curCoef*80 >= hpos && 80 >= vpos && display_on) begin
 			red <= 8'hcc;
 			green <= 8'h00;
 			blue <= 8'h00;
 		end
-
+		
+		for (i = 0; i < 5; i=i+1) begin //Form digits
+			if (i == 0) begin //Form 0
+				if (hpos >= 32 + i*80 && vpos >= 32 &&
+					44 + i*80 >= hpos && 68 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+			end
+			if (i == 1) begin //Form 1
+				if (hpos >= 20 + i*80 && vpos >= 20 &&
+					32 + i*80 >= hpos && 80 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+				if (hpos >= 44 + i*80 && vpos >= 20 &&
+					56 + i*80 >= hpos && 80 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+			end
+			if (i == 2) begin //Form 2
+				if (hpos >= 20 + i*80 && vpos >= 32 &&
+					44 + i*80 >= hpos && 44 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+				if (hpos >= 32 + i*80 && vpos >= 56 &&
+					68 + i*80 >= hpos && 68 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+			end
+			if (i == 3) begin //Form 3
+				if (hpos >= 20 + i*80 && vpos >= 32 &&
+					44 + i*80 >= hpos && 44 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+				if (hpos >= 20 + i*80 && vpos >= 56 &&
+					44 + i*80 >= hpos && 68 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+			end
+			if (i == 4) begin //Form 4
+				if (hpos >= 32 + i*80 && vpos >= 20 &&
+					44 + i*80 >= hpos && 44 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+				if (hpos >= 20 + i*80 && vpos >= 56 &&
+					44 + i*80 >= hpos && 80 >= vpos && display_on) begin
+					red <= 8'h00;
+					green <= 8'hcc;
+					blue <= 8'h00;
+				end
+			end
+		end
+		
 		if (pressed[32]) begin // delete
 			nums[0] = nums[1];
 			nums[1] = nums[2];

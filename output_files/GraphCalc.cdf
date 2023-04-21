@@ -6,7 +6,7 @@ JedecChain;
 	P ActionCode(Ign)
 		Device PartName(5CSEMA5F31) MfrSpec(OpMask(0));
 	P ActionCode(Cfg)
-		Device PartName(5CSEMA5F31) Path("C:/Users/baidussenov/Desktop/coding_stuff/shared_projects/github/graph-calculator/output_files/") File("GraphCalc.sof") MfrSpec(OpMask(1));
+		Device PartName(5CSEMA5F31) Path("D:/graph-calculator/output_files/") File("GraphCalc.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 
