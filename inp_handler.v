@@ -43,25 +43,16 @@ integer shiftX = 400;
 integer shiftY = 240;
 reg [11:0] t;
 initial t = 500;
-integer x;
-integer y;
-integer graphX [800:0];
-integer graphY [800:0];
-integer coefs [4:0];
+reg signed [16:0] x;
+reg signed [36:0] y;
+reg signed [16:0] coefs [4:0];
 integer i, j;
-initial begin
-	for (i = 0; i < 800; i=i+1) begin 
-		graphX[i] = i;
-	end
-	for (i = -400; i < 400; i=i+1) begin 
-		if (i*i < 240 && i*i > -240) 
-			graphY[i+400] = i*i;
-	end
-end
 
 reg [11:0] nums [0:4];
 wire pressed [35:0];
 genvar gen;
+
+reg signed [4:0] zoom = 1;
 
 reg [7:0] plus = 1; // start with 0 => "positive" (not negative)
 
@@ -100,17 +91,17 @@ generate
 	);
 endgenerate
 
-integer buff;
+reg signed [16:0] buff;
 
-function integer poly(input integer x, a4, a3, a2, a1, a0);
+function reg signed [36:0] poly(input reg signed [16:0] x, a4, a3, a2, a1, a0);
     begin
         poly = ((((a4 * x + a3) * x) + a2) * x + a1)*x + a0; 
     end
 endfunction
 
 always @(posedge clk25) begin
-	x <= (hpos - shiftX) / 2;
-	y <= (shiftY - vpos) / 2;
+	x <= (hpos - shiftX) / zoom;
+	y <= shiftY - vpos;
 	red <= 8'hcc;
 	green <= 8'hcc;
 	blue <= 8'hcc;
@@ -129,6 +120,10 @@ always @(posedge clk25) begin
 			green <= 8'h00;
 			blue <= 8'h00;
 		end
+		if (pressed[29] && zoom < 5)
+			zoom = zoom * 2;
+		else if (pressed[31] && zoom > 1)
+			zoom = zoom / 2;
 		if ((x % 10 === 0 && y > -4 && 4 > y))begin
 			red <= 8'h00;
 			green <= 8'h00;
